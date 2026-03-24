@@ -1,6 +1,8 @@
 // Server-side initialisation module for the IoT consumer.
 // Imported once from the root layout — safe to call multiple times (singleton).
 import { initIoTConsumer, createProductionDb } from './iotConsumer';
+import { broadcastToSession } from './sseManager';
+import { getPresenceSnapshot } from './snapshot';
 
 let _initialized = false;
 
@@ -14,20 +16,17 @@ export function ensureIoTConsumerStarted(): void {
 
   _initialized = true;
   const db = createProductionDb();
-  initIoTConsumer(db, (sessionId, studentId) => {
-    // SSE notification — implemented in STORY-008
-    // The SSE handler will call this when it registers listeners
-    notifySSESubscribers(sessionId, studentId);
+  initIoTConsumer(db, async (sessionId, studentId) => {
+    // Build a studentUpdate event from the latest presence state
+    try {
+      const snapshot = await getPresenceSnapshot(sessionId);
+      const studentRow = snapshot.students.find((s) => s.studentId === studentId);
+      if (studentRow) {
+        broadcastToSession(sessionId, { type: 'studentUpdate', ...studentRow });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[SSE] Failed to broadcast student update:', msg);
+    }
   });
-}
-
-// Called by the SSE endpoint (STORY-008) to notify connected browsers
-let _notifySSE: ((sessionId: string, studentId: string) => void) | null = null;
-
-export function registerSSENotifier(fn: (sessionId: string, studentId: string) => void): void {
-  _notifySSE = fn;
-}
-
-function notifySSESubscribers(sessionId: string, studentId: string): void {
-  _notifySSE?.(sessionId, studentId);
 }
