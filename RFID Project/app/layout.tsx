@@ -4,6 +4,7 @@ import { auth } from '@/auth';
 import SessionProvider from '@/app/components/SessionProvider';
 import AppShell from '@/app/components/AppShell';
 import { ensureIoTConsumerStarted } from '@/lib/presence/init';
+import { startBlackbaudScheduler } from '@/lib/integrations/blackbaudScheduler';
 
 export const metadata: Metadata = {
   title: 'Hockaday Presence System',
@@ -16,6 +17,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   ensureIoTConsumerStarted();
+  startBlackbaudScheduler();
   const session = await auth();
 
   return (
