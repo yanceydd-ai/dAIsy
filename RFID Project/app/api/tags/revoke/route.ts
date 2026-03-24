@@ -1,14 +1,27 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth/requireRole';
 import { IT_ADMIN } from '@/lib/auth/roles';
+import { revokeTag } from '@/lib/tags/tagService';
+import { makeTagDb } from '@/lib/tags/tagDb';
 
-// POST /api/tags/revoke — IT_ADMIN only
-export async function POST() {
+export async function POST(req: NextRequest) {
+  let session;
   try {
-    await requireRole(IT_ADMIN);
+    session = await requireRole(IT_ADMIN);
   } catch (err) {
     return err as Response;
   }
 
-  return NextResponse.json({ message: 'Tag revoke — implemented in STORY-013' }, { status: 501 });
+  const body = (await req.json()) as { tagId?: string; reason?: string };
+  if (!body.tagId || !body.reason) {
+    return NextResponse.json({ error: 'tagId and reason are required' }, { status: 400 });
+  }
+
+  try {
+    await revokeTag(makeTagDb(), { tagId: body.tagId, reason: body.reason }, session.user.email ?? 'unknown');
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    const e = err as { status?: number; message?: string };
+    return NextResponse.json({ error: e.message ?? 'Internal server error' }, { status: e.status ?? 500 });
+  }
 }

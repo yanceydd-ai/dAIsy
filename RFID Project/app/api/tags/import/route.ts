@@ -1,14 +1,27 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth/requireRole';
 import { IT_ADMIN } from '@/lib/auth/roles';
+import { importTagsCsv, type CsvRow } from '@/lib/tags/tagService';
+import { makeTagDb } from '@/lib/tags/tagDb';
+import Papa from 'papaparse';
 
-// POST /api/tags/import — IT_ADMIN only
-export async function POST() {
+export async function POST(req: NextRequest) {
+  let session;
   try {
-    await requireRole(IT_ADMIN);
+    session = await requireRole(IT_ADMIN);
   } catch (err) {
     return err as Response;
   }
 
-  return NextResponse.json({ message: 'Tag import — implemented in STORY-013' }, { status: 501 });
+  const formData = await req.formData();
+  const file = formData.get('file');
+  if (!file || typeof file === 'string') {
+    return NextResponse.json({ error: 'file is required' }, { status: 400 });
+  }
+
+  const text = await file.text();
+  const parsed = Papa.parse<CsvRow>(text, { header: true, skipEmptyLines: true });
+
+  const result = await importTagsCsv(makeTagDb(), parsed.data, session.user.email ?? 'unknown');
+  return NextResponse.json(result);
 }

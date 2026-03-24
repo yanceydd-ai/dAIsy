@@ -1,14 +1,27 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth/requireRole';
 import { IT_ADMIN } from '@/lib/auth/roles';
+import { assignTag } from '@/lib/tags/tagService';
+import { makeTagDb } from '@/lib/tags/tagDb';
 
-// POST /api/tags/assign — IT_ADMIN only
-export async function POST() {
+export async function POST(req: NextRequest) {
+  let session;
   try {
-    await requireRole(IT_ADMIN);
+    session = await requireRole(IT_ADMIN);
   } catch (err) {
     return err as Response;
   }
 
-  return NextResponse.json({ message: 'Tag assign — implemented in STORY-013' }, { status: 501 });
+  const body = (await req.json()) as { epc?: string; studentId?: string };
+  if (!body.epc || !body.studentId) {
+    return NextResponse.json({ error: 'epc and studentId are required' }, { status: 400 });
+  }
+
+  try {
+    const result = await assignTag(makeTagDb(), { epc: body.epc, studentId: body.studentId }, session.user.email ?? 'unknown');
+    return NextResponse.json(result, { status: 201 });
+  } catch (err) {
+    const e = err as { status?: number; message?: string };
+    return NextResponse.json({ error: e.message ?? 'Internal server error' }, { status: e.status ?? 500 });
+  }
 }
