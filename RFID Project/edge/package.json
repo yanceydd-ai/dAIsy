@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@libsql/client": "^0.14.0",
+    "azure-iot-device": "^1.18.4",
+    "azure-iot-device-mqtt": "^1.16.4",
     "drizzle-orm": "^0.45.1"
   },
   "devDependencies": {

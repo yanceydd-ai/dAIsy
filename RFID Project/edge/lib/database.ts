@@ -15,13 +15,19 @@ export function getDb(dbPath?: string): EdgeDb {
     ?? process.env.EDGE_DB_PATH
     ?? path.join(__dirname, '..', 'data', 'reads.db');
 
-  // Ensure data directory exists
-  const dir = path.dirname(resolvedPath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+  // In-memory database for testing
+  const isMemory = resolvedPath === ':memory:';
+  const url = isMemory ? ':memory:' : `file:${resolvedPath}`;
+
+  if (!isMemory) {
+    // Ensure data directory exists
+    const dir = path.dirname(resolvedPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
   }
 
-  const client = createClient({ url: `file:${resolvedPath}` });
+  const client = createClient({ url });
   const db = drizzle(client, { schema });
 
   // Bootstrap schema inline

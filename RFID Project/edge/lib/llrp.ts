@@ -51,6 +51,7 @@ export interface LLRPClientEvents {
   connected: () => void;
   disconnected: () => void;
   error: (err: Error) => void;
+  'window-closed': (reads: RawRead[]) => void;
 }
 
 export class LLRPClient extends EventEmitter {
@@ -64,6 +65,7 @@ export class LLRPClient extends EventEmitter {
   // Read window state
   private windowOpen = false;
   private windowTimer: NodeJS.Timeout | null = null;
+  private windowReads: RawRead[] = [];
   private directionWindowMs: number;
 
   constructor(host: string, port: number, directionWindowMs = 3000) {
@@ -103,14 +105,18 @@ export class LLRPClient extends EventEmitter {
     this.socket.connect(this.port, this.host);
   }
 
-  // Open a read window for directionWindowMs, then close it.
+  // Open a read window for directionWindowMs, then close it and emit 'window-closed'.
   openReadWindow() {
     if (this.windowOpen) return;
     this.windowOpen = true;
+    this.windowReads = [];
 
     if (this.windowTimer) clearTimeout(this.windowTimer);
     this.windowTimer = setTimeout(() => {
       this.windowOpen = false;
+      const reads = this.windowReads;
+      this.windowReads = [];
+      this.emit('window-closed', reads);
     }, this.directionWindowMs);
   }
 
@@ -154,6 +160,7 @@ export class LLRPClient extends EventEmitter {
       // Emit a synthetic read for each EPC found in the report.
       const reads = parseROAccessReport(body);
       for (const r of reads) {
+        this.windowReads.push(r);
         this.emit('read', r);
       }
     }
@@ -227,6 +234,7 @@ export class MockLLRPClient extends EventEmitter {
   private mockTimer: NodeJS.Timeout | null = null;
   private windowOpen = false;
   private windowTimer: NodeJS.Timeout | null = null;
+  private windowReads: RawRead[] = [];
   private directionWindowMs: number;
   private triggerIntervalMs: number;
 
@@ -246,12 +254,14 @@ export class MockLLRPClient extends EventEmitter {
       const zones: Array<'zone-a' | 'zone-b'> = ['zone-a', 'zone-b'];
       for (const epc of epcs) {
         for (const zone of zones) {
-          this.emit('read', {
+          const read: RawRead = {
             epc,
             antennaZone: zone,
             rssi: -65 + Math.random() * 10,
             ts: new Date(),
-          } satisfies RawRead);
+          };
+          this.windowReads.push(read);
+          this.emit('read', read);
         }
       }
     }, this.triggerIntervalMs);
@@ -263,9 +273,13 @@ export class MockLLRPClient extends EventEmitter {
   openReadWindow() {
     if (this.windowOpen) return;
     this.windowOpen = true;
+    this.windowReads = [];
     if (this.windowTimer) clearTimeout(this.windowTimer);
     this.windowTimer = setTimeout(() => {
       this.windowOpen = false;
+      const reads = this.windowReads;
+      this.windowReads = [];
+      this.emit('window-closed', reads);
     }, this.directionWindowMs);
   }
 
