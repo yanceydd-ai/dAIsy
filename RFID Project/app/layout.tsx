@@ -3,6 +3,7 @@ import './globals.css';
 import { auth } from '@/auth';
 import SessionProvider from '@/app/components/SessionProvider';
 import AppShell from '@/app/components/AppShell';
+import { ensureIoTConsumerStarted } from '@/lib/presence/init';
 
 export const metadata: Metadata = {
   title: 'Hockaday Presence System',
@@ -14,6 +15,7 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  ensureIoTConsumerStarted();
   const session = await auth();
 
   return (

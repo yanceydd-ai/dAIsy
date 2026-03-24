@@ -89,6 +89,7 @@ export const rawReads = pgTable(
 // crossing_events
 export const crossingEvents = pgTable('crossing_events', {
   id: uuid('id').primaryKey().defaultRandom(),
+  crossingId: varchar('crossing_id', { length: 200 }).unique(), // edge-generated UUID for deduplication
   ts: timestamp('ts').notNull(),
   studentId: uuid('student_id').references(() => students.id),
   doorId: varchar('door_id', { length: 50 }).notNull().references(() => doors.id),

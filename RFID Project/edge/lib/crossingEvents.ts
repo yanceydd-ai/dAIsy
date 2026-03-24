@@ -4,6 +4,7 @@ import { EdgeStateMachine } from './stateMachine';
 import type { RawRead } from './llrp';
 
 export interface CrossingEvent {
+  id: string;        // UUID — used for cloud-side deduplication
   deviceId: string;
   doorId: string;
   epc: string;
@@ -76,6 +77,7 @@ export class CrossingEventProcessor {
       const zoneSequence = [...new Set(sorted.map((r) => r.antennaZone))];
 
       events.push({
+        id: crypto.randomUUID(),
         deviceId: this.opts.deviceId,
         doorId: this.opts.doorId,
         epc,
