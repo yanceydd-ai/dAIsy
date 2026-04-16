@@ -102,3 +102,77 @@ def _parse_ingredients_text(text: str) -> list[str]:
         if part and len(part) > 1:
             result.append(part)
     return result
+def lookup_product(barcode: str) -> dict | None:
+    """Look up a product by barcode. Checks local EWG DB first, falls back to OBF API."""
+    import json
+    import os
+
+    # ── 1. Local EWG database ──────────────────────────────────────────────────
+    db_path = os.path.expanduser("~/verity/db/ewg_products.json")
+    try:
+        with open(db_path) as f:
+            barcode_index = json.load(f)
+
+        record = barcode_index.get(barcode) or barcode_index.get(barcode.lstrip("0"))
+
+        if record:
+            return {
+                "name": record.get("name", "Unknown Product"),
+                "brand": record.get("brand", ""),
+                "category": record.get("category", ""),
+                "ingredients": record.get("ingredients", []),
+                "ingredient_scores": record.get("ingredient_scores", {}),
+                "ewg_score": record.get("score"),
+                "ewg_concerns": record.get("ewg_concerns", []),
+                "source": "local_ewg",
+            }
+    except Exception as exc:
+        logger.warning("Local EWG DB lookup failed: %s", exc)
+
+    # ── 2. OBF API fallback ────────────────────────────────────────────────────
+    import requests
+
+    url = f"https://world.openbeautyfacts.org/api/v0/product/{barcode}.json"
+    try:
+        resp = requests.get(url, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as exc:
+        logger.warning("OBF API request failed: %s", exc)
+        return None
+
+    if data.get("status") != 1:
+        return None
+
+    product = data.get("product", {})
+    name = (
+        product.get("product_name_en")
+        or product.get("product_name")
+        or "Unknown Product"
+    )
+    brand = product.get("brands", "").split(",")[0].strip()
+
+    ingredients: list[str] = []
+    for ing in product.get("ingredients") or []:
+        ing_name = ing.get("text") or ing.get("id") or ""
+        if ":" in ing_name:
+            ing_name = ing_name.split(":")[-1]
+        ing_name = ing_name.replace("-", " ").strip()
+        if ing_name:
+            ingredients.append(ing_name)
+
+    if not ingredients:
+        ingredients_text = product.get("ingredients_text") or ""
+        if ingredients_text:
+            ingredients = _parse_ingredients_text(ingredients_text)
+
+    return {
+        "name": name,
+        "brand": brand,
+        "category": product.get("categories", ""),
+        "ingredients": ingredients,
+        "ingredient_scores": {},
+        "ewg_score": None,
+        "ewg_concerns": [],
+        "source": "obf_api",
+    }

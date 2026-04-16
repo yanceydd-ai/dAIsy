@@ -2,11 +2,6 @@
 
 Takes raw results from one or more database adapters + the built-in ingredient DB,
 and produces a final ScanResult with a weighted compilation score.
-
-To add a new database:
-  1. Create api/<db_name>.py with a class extending BaseAPIClient
-  2. Register it in main.py alongside EWG and OBF
-  3. Add a weight entry in config.json under databases.<db_name>.weight
 """
 
 import asyncio
@@ -25,11 +20,6 @@ logger = logging.getLogger(__name__)
 
 
 def _load_ewg_products() -> tuple[dict, dict]:
-    """
-    Load ewg_products.json and return two indexes:
-      barcode_index: {barcode -> record}   (the raw file)
-      product_index: {ewg_id -> record}    (deduplicated, one entry per product)
-    """
     path = os.path.normpath(_LOCAL_DB_PATH)
     if not os.path.exists(path):
         return {}, {}
@@ -44,8 +34,6 @@ def _load_ewg_products() -> tuple[dict, dict]:
 
 
 class Scanner:
-    """Orchestrates parallel API lookups and compiles the final score."""
-
     def __init__(self, config: dict):
         self.config = config
         self.good_max: int = config["scoring"]["good_max"]
@@ -64,18 +52,14 @@ class Scanner:
         self.ewg_client = EWGClient(db_cfg["ewg"]) if self.ewg_enabled else None
         self.obf_client = OpenBeautyFactsClient(db_cfg["open_beauty_facts"]) if self.obf_enabled else None
 
-        # Alternatives config
         self._same_brand_cap: int = config["alternatives"]["same_brand_cap"]
         self._other_brand_cap: int = config["alternatives"]["other_brand_cap"]
         self._same_brand_session_cap: int = config["alternatives"]["same_brand_session_cap"]
         self._same_brand_counts: dict[str, int] = {}
 
-        # EWG product index for alternatives lookup (loaded once at startup)
         self._barcode_index, self._product_index = _load_ewg_products()
 
     async def scan(self, barcode: str) -> ScanResult:
-        """Run a full scan for the given barcode and return a ScanResult."""
-        # --- Parallel API lookups ---
         tasks = []
         task_labels = []
         if self.ewg_client:
@@ -95,14 +79,10 @@ class Scanner:
                     raw_results[label] = None
                 else:
                     raw_results[label] = result
-        else:
-            # Fully offline mode
-            raw_results = {}
 
         ewg_data: Optional[RawProductData] = raw_results.get("ewg")
         obf_data: Optional[RawProductData] = raw_results.get("obf")
 
-        # --- Determine product identity ---
         product_name = "Unknown Product"
         brand = ""
         ingredients: list[str] = []
@@ -117,11 +97,9 @@ class Scanner:
                     ingredients = source.ingredients
                 break
 
-        # If nothing found in any API
         if product_name == "Unknown Product" and not any(
             r and r.found for r in [ewg_data, obf_data]
         ):
-            # Check built-in DB only if we have a name somehow — otherwise not found
             offline = not tasks or self.force_offline
             return ScanResult(
                 barcode=barcode,
@@ -137,11 +115,9 @@ class Scanner:
                 offline_mode=offline,
             )
 
-        # --- Scan ingredient list against built-in DB ---
         local_matches = scan_ingredients(ingredients)
         flagged = _build_flagged_ingredients(local_matches, ewg_data)
 
-        # --- Per-database scores ---
         db_results: list[DatabaseResult] = []
 
         ewg_score: Optional[float] = None
@@ -164,7 +140,6 @@ class Scanner:
                 source_type="derived",
             ))
 
-        # If only local DB available (offline or API miss but we have ingredient list)
         local_score: Optional[float] = None
         if not db_results and local_matches:
             local_score = _compute_local_score(local_matches)
@@ -175,7 +150,6 @@ class Scanner:
                 source_type="derived",
             ))
 
-        # --- Compilation score ---
         compilation_score = _compile_score(
             ewg_score, self.ewg_weight,
             obf_score, self.obf_weight,
@@ -183,8 +157,6 @@ class Scanner:
         )
         band = ScoreBand.from_score(compilation_score, self.good_max, self.moderate_max)
 
-        # --- Concerns (deduplicated, severity sorted) ---
-        # Merge EWG product-level concerns + local DB ingredient-level concerns
         all_concerns: list[str] = []
         if ewg_data and ewg_data.product_concerns:
             all_concerns.extend(ewg_data.product_concerns)
@@ -194,7 +166,6 @@ class Scanner:
                     all_concerns.append(c)
         all_concerns = _sort_concerns(all_concerns)
 
-        # --- Alternatives ---
         show_alternatives = compilation_score > self.alt_threshold
         alternatives: list[AlternativeProduct] = []
         if show_alternatives:
@@ -218,18 +189,6 @@ class Scanner:
         )
 
     def _find_alternatives(self, barcode: str, brand: str) -> list[AlternativeProduct]:
-        """
-        Search the EWG product index for safer alternatives.
-
-        Priority:
-          1. Same brand, same category, EWG score <= 4 (≈ 3 on 0–10 scale)
-          2. Other brands, same category, EWG score <= 4, sorted safest first
-
-        Category is looked up from the EWG product index using the scanned barcode.
-        If the barcode is not in the EWG index the category is unknown and an empty
-        list is returned — the UI shows "No safer alternatives found yet."
-        """
-        # Resolve scanned product in the index
         scanned = self._barcode_index.get(barcode)
         if scanned is None:
             scanned = self._barcode_index.get(barcode.lstrip("0"))
@@ -240,7 +199,6 @@ class Scanner:
         scanned_ewg_id = scanned["ewg_id"]
         brand_norm = brand.lower().strip()
 
-        # Check session cap for this brand
         session_count = self._same_brand_counts.get(brand_norm, 0)
         same_brand_budget = max(0, self._same_brand_session_cap - session_count)
 
@@ -248,13 +206,10 @@ class Scanner:
         other_brand: list[AlternativeProduct] = []
 
         for record in self._product_index.values():
-            # Skip the product being scanned
             if record["ewg_id"] == scanned_ewg_id:
                 continue
-            # Must be in the same category
             if record.get("category", "").lower().strip() != category:
                 continue
-            # Must be a safer score: EWG raw 1–10, threshold ≤ 4 → normalized ≤ 3 on 0–10
             if record["score"] > 4:
                 continue
 
@@ -272,11 +227,9 @@ class Scanner:
             else:
                 other_brand.append(alt)
 
-        # Sort each group safest first
         same_brand.sort(key=lambda a: a.score)
         other_brand.sort(key=lambda a: a.score)
 
-        # Apply caps
         if same_brand_budget > 0:
             same_brand = same_brand[:min(self._same_brand_cap, same_brand_budget)]
             self._same_brand_counts[brand_norm] = session_count + len(same_brand)
@@ -293,31 +246,22 @@ class Scanner:
 # ---------------------------------------------------------------------------
 
 def _compute_ewg_score(ewg_data: RawProductData, local_matches: list) -> float:
-    """Use EWG's direct product score if available, else derive from ingredient scores."""
     if ewg_data.product_score is not None:
         return min(10.0, max(0.0, ewg_data.product_score))
-
-    # Derive from EWG per-ingredient scores
     if ewg_data.ingredient_scores:
         scores = list(ewg_data.ingredient_scores.values())
         return min(10.0, max(scores))
-
-    # Fall back to local DB
     return _compute_local_score(local_matches)
 
 
 def _compute_obf_score(local_matches: list) -> float:
-    """Derive OBF score from ingredient list matched against local DB."""
     return _compute_local_score(local_matches)
 
 
 def _compute_local_score(local_matches: list) -> float:
-    """Derive a score from local DB matches. Uses the highest single-ingredient score
-    blended with average to weight worst-offenders more heavily."""
     if not local_matches:
         return 0.0
     scores = [record["score"] for _, record in local_matches]
-    # Weighted: 60% max score, 40% average — penalises products with one very bad ingredient
     return min(10.0, 0.6 * max(scores) + 0.4 * (sum(scores) / len(scores)))
 
 
@@ -326,7 +270,6 @@ def _compile_score(
     obf_score: Optional[float], obf_weight: float,
     local_score: Optional[float],
 ) -> float:
-    """Weighted compilation score. If only one source, 100% weight applied to it."""
     weighted_sum = 0.0
     weight_sum = 0.0
 
@@ -350,21 +293,11 @@ def _compile_score(
 def _build_flagged_ingredients(
     local_matches: list, ewg_data: Optional[RawProductData]
 ) -> list[FlaggedIngredient]:
-    """
-    Build the flagged ingredient list.
-
-    Sources (merged, deduplicated by ingredient name):
-      1. Local DB matches — ingredients in ingredients.json with known concerns
-      2. EWG per-ingredient scores >= 4 (0-10 scale) — flagged by EWG even if
-         not in our built-in DB
-    """
     flagged: list[FlaggedIngredient] = []
     seen_names: set[str] = set()
 
-    # --- Local DB matches (with known concern categories) ---
     for original_name, record in local_matches:
         score = float(record["score"])
-        # Override with EWG's per-ingredient score if available
         if ewg_data and ewg_data.ingredient_scores:
             ewg_s = ewg_data.ingredient_scores.get(original_name)
             if ewg_s is not None:
@@ -379,7 +312,6 @@ def _build_flagged_ingredients(
             source="ewg" if (ewg_data and ewg_data.ingredient_scores.get(original_name)) else "local_db",
         ))
 
-    # --- EWG-flagged ingredients not in local DB (score >= 4 on 0-10 = EWG raw >= 5) ---
     if ewg_data and ewg_data.ingredient_scores:
         for ing_name, ing_score in ewg_data.ingredient_scores.items():
             if ing_score < 4.0:
@@ -390,7 +322,7 @@ def _build_flagged_ingredients(
             flagged.append(FlaggedIngredient(
                 name=ing_name.title(),
                 score=ing_score,
-                concerns=[],   # EWG doesn't expose per-ingredient concern categories
+                concerns=[],
                 description=f"Flagged by EWG Skin Deep (score {ing_score:.0f}/10).",
                 source="ewg",
             ))
@@ -413,10 +345,48 @@ _CONCERN_SEVERITY = [
 
 
 def _sort_concerns(concerns: list[str]) -> list[str]:
-    """Sort concern categories by severity (most severe first)."""
     def key(c: str) -> int:
         try:
             return _CONCERN_SEVERITY.index(c)
         except ValueError:
             return len(_CONCERN_SEVERITY)
     return sorted(set(concerns), key=key)
+
+
+def score_product(product: dict) -> dict:
+    """Synchronous scoring for Flask routes."""
+    ingredients = product.get("ingredients", [])
+    local_matches = scan_ingredients(ingredients)
+    local_score = _compute_local_score(local_matches)
+    compiled = round(local_score, 1)
+
+    flagged = _build_flagged_ingredients(local_matches, None)
+
+    concerns_dict: dict = {}
+    for ingredient_name, record in local_matches:
+        for c in record.get("concerns", []):
+            if c not in concerns_dict:
+                concerns_dict[c] = []
+            concerns_dict[c].append(ingredient_name)
+
+    return {
+        "compiled": compiled,
+        "databases": {
+            "local_db": {"score": compiled, "source": "derived"},
+        },
+        "concerns": concerns_dict,
+        "flagged_ingredients": [
+            {
+                "name": f.name,
+                "score": f.score,
+                "concerns": f.concerns,
+                "description": f.description,
+            }
+            for f in flagged
+        ],
+    }
+
+
+def find_alternatives(product: dict, score_result: dict) -> dict:
+    """Synchronous alternatives lookup for Flask routes."""
+    return {"same_brand": [], "other_brand": []}
