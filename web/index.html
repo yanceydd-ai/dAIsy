@@ -60,6 +60,56 @@
       100% { transform: translateY(-10vh)  rotate(var(--tilt, -8deg)); opacity: 0; }
     }
 
+    /* ── Camera ─────────────────────────────────────────────────── */
+    .camera-section {
+      width: 100%;
+      max-width: 480px;
+      margin: 0 auto 24px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    .camera-wrap {
+      position: relative;
+      width: 100%;
+      max-width: 360px;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #000;
+      aspect-ratio: 4/3;
+    }
+    #cameraFeed {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .camera-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+    .scan-frame {
+      width: 200px;
+      height: 120px;
+      border: 2px solid var(--hot-pink);
+      border-radius: 12px;
+      box-shadow: 0 0 0 2000px rgba(0,0,0,0.35);
+    }
+    .scan-hint {
+      color: rgba(255,255,255,0.9);
+      font-size: 0.8rem;
+      text-align: center;
+      letter-spacing: 0.04em;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+    }
+
     /* ── Utility ────────────────────────────────────────────────── */
     .glass {
       background: var(--card-bg);
@@ -505,6 +555,7 @@
       .ingredients-card, .alts-card { padding: 20px; }
     }
   </style>
+  <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
 </head>
 <body>
 
@@ -532,6 +583,22 @@
   <div class="glass scanner-card">
     <label class="scanner-label" for="barcodeInput">Scan or enter a product barcode</label>
     <div class="scanner-input-wrap">
+      <!-- Camera scanner -->
+      <div id="cameraSection" class="camera-section glass">
+        <div class="camera-wrap">
+          <video id="cameraFeed" playsinline autoplay muted></video>
+          <div class="camera-overlay">
+            <div class="scan-frame"></div>
+            <p class="scan-hint">Point camera at product barcode</p>
+          </div>
+        </div>
+        <button class="btn-secondary" onclick="stopCamera()" id="cancelScanBtn">Cancel</button>
+      </div>
+
+      <button id="scanAgainBtn" class="btn-primary hidden" onclick="startCamera()">
+        📷 Scan Again
+      </button>
+
       <input
         id="barcodeInput"
         class="scanner-input"
@@ -589,7 +656,79 @@
 
 <script>
   /* ── Config ──────────────────────────────────────────────────── */
-  let API_URL = localStorage.getItem('verity_api_url') || '';
+  let API_URL = localStorage.getItem('verity_api_url') || window.location.origin;
+
+  /* ── Camera scanning ─────────────────────────────────────────── */
+  let codeReader = null;
+  let cameraActive = false;
+
+  async function startCamera() {
+    const section = document.getElementById('cameraSection');
+    const againBtn = document.getElementById('scanAgainBtn');
+    const results = document.getElementById('results');
+
+    section.classList.remove('hidden');
+    againBtn.classList.add('hidden');
+    results.classList.add('hidden');
+    results.innerHTML = '';
+
+    codeReader = new ZXing.BrowserMultiFormatReader();
+    cameraActive = true;
+
+    try {
+      const devices = await ZXing.BrowserMultiFormatReader.listVideoInputDevices();
+      // Prefer rear camera on Pi (usually the only one, or last in list)
+      const deviceId = devices.length > 1
+        ? devices[devices.length - 1].deviceId
+        : (devices[0] ? devices[0].deviceId : undefined);
+
+      await codeReader.decodeFromVideoDevice(
+        deviceId,
+        document.getElementById('cameraFeed'),
+        (result, err) => {
+          if (result && cameraActive) {
+            cameraActive = false;
+            const barcode = result.getText();
+            stopCamera();
+            runScanWithBarcode(barcode);
+          }
+        }
+      );
+    } catch (e) {
+      stopCamera();
+      showError();
+    }
+  }
+
+  function stopCamera() {
+    if (codeReader) {
+      codeReader.reset();
+      codeReader = null;
+    }
+    cameraActive = false;
+    document.getElementById('cameraSection').classList.add('hidden');
+  }
+
+  async function runScanWithBarcode(barcode) {
+    showLoading();
+
+    try {
+      const r = await fetch(`${API_URL}/scan/${barcode}`);
+      if (r.status === 404) { showNotFound(barcode); return; }
+      if (!r.ok) { showError(); return; }
+      const data = await r.json();
+      renderResults(data);
+    } catch (e) {
+      showError();
+    } finally {
+      document.getElementById('scanAgainBtn').classList.remove('hidden');
+    }
+  }
+
+  // Start camera automatically when page loads
+  window.addEventListener('DOMContentLoaded', () => {
+    startCamera();
+  });
 
   function openConfig()  {
     document.getElementById('apiUrlInput').value = API_URL;
@@ -798,11 +937,10 @@
           Product not found</h2>
         <p style="color:var(--muted);font-size:0.9rem">
           No result for barcode <strong>${barcode}</strong>.<br/>
-          Try adding it at
-          <a href="https://openbeautyfacts.org" target="_blank"
-             style="color:var(--hot-pink)">openbeautyfacts.org</a> 💗
+          This product may not be in our database yet. 💗
         </p>
       </div>`;
+    document.getElementById('scanAgainBtn').classList.remove('hidden');
   }
 
   function showError() {
@@ -848,7 +986,7 @@
     const circ  = 283;
     const offset = circ - (s / 10) * circ;
 
-    const dbNames = { ewg: 'EWG Skin Deep', open_beauty_facts: 'Open Beauty Facts' };
+    const dbNames = { ewg: 'EWG Skin Deep', open_beauty_facts: 'Open Beauty Facts', csv: 'EWG (CSV)' };
 
     // Per-database cards
     let dbCards = '';
@@ -859,7 +997,7 @@
           <div class="db-name">${dbNames[key] || key}</div>
           <div class="db-score ${scoreClass(db.score)}">${db.score}<span style="font-size:1rem;font-weight:400;color:var(--muted)">/10</span></div>
           <div class="db-grade ${scoreClass(db.score)}">${db.grade}</div>
-          <div class="db-source">${db.source === 'ewg_api' ? '✦ API' : 'ingredient analysis'}</div>
+          <div class="db-source">${db.source === 'csv' ? '✦ local database' : db.source === 'ewg_api' ? '✦ API' : 'ingredient analysis'}</div>
         </div>`;
     }
 
@@ -930,7 +1068,7 @@
         </div>
         <div class="score-details">
           <div class="score-label ${sClass}">${scores.compilation_grade}</div>
-          <div class="score-sublabel">${scores.compilation_label} · weighted compilation</div>
+          <div class="score-sublabel">${scores.compilation_label}${scores.yuka_score ? ' · Yuka: ' + scores.yuka_score : ''}</div>
           <div class="score-bar-wrap">
             <div class="score-bar-track">
               <div class="score-bar-marker" id="scoreMarker" style="left:0%"></div>
