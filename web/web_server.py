@@ -14,6 +14,7 @@ Endpoints:
 import json
 import logging
 import os
+import re as _re
 import sys
 
 from flask import Flask, jsonify, send_file
@@ -46,7 +47,11 @@ except FileNotFoundError:
 
 # ── App ───────────────────────────────────────────────────────────────────────
 app = Flask(__name__)
-CORS(app, origins=["http://localhost:*", "http://127.0.0.1:*", "http://192.168.*"])
+CORS(app, origins=[
+    _re.compile(r"http://localhost(:\d+)?"),
+    _re.compile(r"http://127\.0\.0\.1(:\d+)?"),
+    _re.compile(r"http://192\.168\.\d+\.\d+(:\d+)?"),
+])
 
 
 def err(message, code=400):
@@ -96,7 +101,10 @@ def product_info(barcode):
     if not record:
         return jsonify({"ok": False, "error": "Product not found", "barcode": barcode}), 404
 
-    return jsonify({"ok": True, "product": record["product"]})
+    product = record.get("product")
+    if not product:
+        return err("Product data unavailable", 500)
+    return jsonify({"ok": True, "product": product})
 
 
 @app.route("/config")
