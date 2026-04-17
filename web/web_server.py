@@ -65,6 +65,11 @@ def index():
     return send_file(os.path.join(BASE_DIR, "index.html"))
 
 
+@app.route("/zxing.min.js")
+def zxing_js():
+    return send_file(os.path.join(BASE_DIR, "zxing.min.js"), mimetype="application/javascript")
+
+
 @app.route("/health")
 def health():
     return jsonify({
