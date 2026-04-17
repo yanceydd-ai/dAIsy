@@ -582,7 +582,7 @@
 
   <div class="glass scanner-card">
     <label class="scanner-label" for="barcodeInput">Scan or enter a product barcode</label>
-    <div class="scanner-input-wrap">
+
       <!-- Camera scanner -->
       <div id="cameraSection" class="camera-section glass">
         <div class="camera-wrap">
@@ -599,6 +599,7 @@
         📷 Scan Again
       </button>
 
+    <div class="scanner-input-wrap">
       <input
         id="barcodeInput"
         class="scanner-input"
@@ -710,6 +711,8 @@
   }
 
   async function runScanWithBarcode(barcode) {
+    const againBtn = document.getElementById('scanAgainBtn');
+    if (againBtn) againBtn.disabled = true;
     showLoading();
 
     try {
@@ -721,7 +724,8 @@
     } catch (e) {
       showError();
     } finally {
-      document.getElementById('scanAgainBtn').classList.remove('hidden');
+      const btn = document.getElementById('scanAgainBtn');
+      if (btn) { btn.disabled = false; btn.classList.remove('hidden'); }
     }
   }
 
