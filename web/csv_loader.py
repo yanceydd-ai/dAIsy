@@ -1,4 +1,5 @@
 # web/csv_loader.py
+import copy
 import csv
 import re
 
@@ -52,7 +53,10 @@ def load_csv(path: str) -> dict:
         for row in reader:
             raw_barcodes = row.get("Barcode", "")
             barcodes = [b.strip() for b in raw_barcodes.split(",") if b.strip()]
-            ewg_score = int(row.get("EWG Score", 0) or 0)
+            try:
+                ewg_score = int(row.get("EWG Score", 0) or 0)
+            except ValueError:
+                ewg_score = 0
             concerns = [col for col in concern_cols if row.get(col, "").strip()]
             flagged = _parse_flagged_ingredients(
                 row.get("Flagged Ingredients", ""), ewg_score, concerns
@@ -86,7 +90,7 @@ def load_csv(path: str) -> dict:
                 "alternatives": {"same_brand": [], "other_brand": []},
             }
             for barcode in barcodes:
-                db[barcode] = record
+                db[barcode] = copy.deepcopy(record)
     return db
 
 
