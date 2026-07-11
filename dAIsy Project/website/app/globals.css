@@ -48,15 +48,12 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
 
-  /* dAIsy brand color tokens */
-  --color-daisy-background: #FAFAF7;
-  --color-daisy-primary: #1B4332;
-  --color-daisy-accent: #F5C842;
-  --color-daisy-ambassadors: #E8A598;
-  --color-daisy-orchestrator: #A89BC2;
-  --color-daisy-challenge: #7BB8D4;
-  --color-daisy-prohibited: #D9534F;
-  --color-daisy-caution: #F0A500;
+  /* dAIsy brand color tokens — override shadcn defaults + add pillar colors */
+  --color-ambassadors: #E8A598;
+  --color-orchestrator: #A89BC2;
+  --color-challenge: #7BB8D4;
+  --color-prohibited: #D9534F;
+  --color-caution: #F0A500;
 
   /* dAIsy font tokens */
   --font-serif: var(--font-playfair), Georgia, serif;
@@ -66,14 +63,17 @@
   --font-playfair: '';
   --font-inter: '';
 
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
+  /* dAIsy overrides — these feed --color-background/primary/accent via @theme inline */
+  --background: #FAFAF7;
+  --foreground: #1B4332;
+  --card: #FAFAF7;
+  --card-foreground: #1B4332;
+  --popover: #FAFAF7;
+  --popover-foreground: #1B4332;
+  --primary: #1B4332;
+  --primary-foreground: #FAFAF7;
+  --accent: #F5C842;
+  --accent-foreground: #1B4332;
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
