@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import SessionCards from "@/components/sessions/SessionCards";
 import { AMBASSADORS_CONTENT } from "@/lib/content";
 import { MOTION_VARIANTS } from "@/lib/motion";
-import { Users, Heart, BookOpen } from "lucide-react";
+import { Heart, BookOpen } from "lucide-react";
 
 export default function AmbassadorsPage() {
   const c = AMBASSADORS_CONTENT;

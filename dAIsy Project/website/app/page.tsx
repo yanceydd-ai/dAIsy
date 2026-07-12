@@ -65,7 +65,7 @@ export default function HomePage() {
         >
           {HOME_CONTENT.pillars.map((pillar) => (
             <motion.div key={pillar.number} variants={MOTION_VARIANTS.fadeUp}>
-              <Link href={pillar.href} className="block h-full">
+              <Link href={pillar.href} className="block h-full group">
                 <div
                   className="rounded-2xl p-6 h-full space-y-4 border border-transparent hover:shadow-md transition-shadow"
                   style={{ backgroundColor: `${pillar.color}22`, borderColor: `${pillar.color}44` }}

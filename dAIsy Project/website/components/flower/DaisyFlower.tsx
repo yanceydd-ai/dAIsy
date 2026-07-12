@@ -2,7 +2,8 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { HOME_CONTENT } from "@/lib/content";
+
+const PETAL_DELAYS = [0.3, 0.9, 1.2];
 
 const PETAL_CONFIGS = [
   { angle: -30,  color: "#E8A598", href: "/ambassadors",  label: "AI Ambassadors" },
@@ -10,7 +11,7 @@ const PETAL_CONFIGS = [
   { angle: 210,  color: "#7BB8D4", href: "/challenge",    label: "Innovation Challenge" },
 ];
 
-function Petal({ angle, color, href, label }: typeof PETAL_CONFIGS[0]) {
+function Petal({ angle, color, href, label, index }: typeof PETAL_CONFIGS[0] & { index: number }) {
   const rad = (angle * Math.PI) / 180;
   const cx = 100 + Math.sin(rad) * 48;
   const cy = 100 - Math.cos(rad) * 48;
@@ -26,7 +27,7 @@ function Petal({ angle, color, href, label }: typeof PETAL_CONFIGS[0]) {
         transform={`rotate(${angle} ${cx} ${cy})`}
         initial={{ opacity: 0.75 }}
         animate={{ opacity: [0.75, 1, 0.75] }}
-        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: Math.random() * 1.5 }}
+        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: PETAL_DELAYS[index] }}
         whileHover={{ opacity: 1, scale: 1.08 }}
         className="cursor-pointer"
       />
@@ -35,7 +36,6 @@ function Petal({ angle, color, href, label }: typeof PETAL_CONFIGS[0]) {
 }
 
 export default function DaisyFlower({ size = 200 }: { size?: number }) {
-  const scale = size / 200;
   return (
     <svg
       width={size}
@@ -63,8 +63,8 @@ export default function DaisyFlower({ size = 200 }: { size?: number }) {
       })}
 
       {/* Three pillar petals */}
-      {PETAL_CONFIGS.map((p) => (
-        <Petal key={p.href} {...p} />
+      {PETAL_CONFIGS.map((p, i) => (
+        <Petal key={p.href} {...p} index={i} />
       ))}
 
       {/* Golden center */}

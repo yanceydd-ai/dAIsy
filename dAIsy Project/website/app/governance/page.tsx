@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Link from "next/link";
 import RiskTierMap from "@/components/risk-tier/RiskTierMap";
 import { GOVERNANCE_CONTENT } from "@/lib/content";
 import { MOTION_VARIANTS } from "@/lib/motion";
@@ -14,6 +15,20 @@ export default function GovernancePage() {
         <p className="text-sm font-medium text-accent uppercase tracking-widest">Program governance</p>
         <h1 className="text-4xl font-serif font-bold">Governance</h1>
         <p className="text-lg text-primary/70 max-w-2xl leading-relaxed">{c.intro}</p>
+      </motion.div>
+
+      {/* Verification-first callout */}
+      <motion.div
+        className="rounded-2xl border-l-4 border-orchestrator bg-orchestrator/8 px-8 py-6 space-y-3"
+        initial="hidden" whileInView="visible" viewport={{ once: true }}
+        variants={MOTION_VARIANTS.fadeUp}
+      >
+        <blockquote className="text-lg font-serif text-primary/80 leading-relaxed">
+          &ldquo;{c.verificationFirst.quote}&rdquo;
+        </blockquote>
+        <Link href={c.verificationFirst.link.href} className="text-sm font-medium text-orchestrator hover:underline">
+          {c.verificationFirst.link.label}
+        </Link>
       </motion.div>
 
       {/* Tool Risk Tier Map */}

@@ -8,7 +8,7 @@
   /* shadcn design system tokens */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-inter), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -61,7 +61,6 @@
 
 :root {
   --font-playfair: '';
-  --font-inter: '';
 
   /* dAIsy overrides — these feed --color-background/primary/accent via @theme inline */
   --background: #FAFAF7;

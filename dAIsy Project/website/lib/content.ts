@@ -557,4 +557,8 @@ export const GOVERNANCE_CONTENT = {
     { loop: "dAIsy Pulse (benchmarked annual survey)", cadence: "Each spring", owner: "Technology Office with Counseling", canChange: "Program direction, expansion gating, and the report to Leadership and the Board" },
   ],
   closingStatement: "The second student in this document's first paragraph deserves a school that decided on purpose. Ours did.",
+  verificationFirst: {
+    quote: "Tool access is a privilege earned through demonstrated judgment, not a default granted at enrollment.",
+    link: { label: "See full Junior AI Orchestrator certification →", href: "/orchestrator" },
+  },
 };
