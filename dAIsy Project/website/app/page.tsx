@@ -1,65 +1,114 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { motion } from "framer-motion";
+import Link from "next/link";
+import DaisyFlower from "@/components/flower/DaisyFlower";
+import PipelineDiagram from "@/components/pipeline/PipelineDiagram";
+import { HOME_CONTENT } from "@/lib/content";
+import { MOTION_VARIANTS } from "@/lib/motion";
+import { ArrowRight } from "lucide-react";
+
+export default function HomePage() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <div className="max-w-7xl mx-auto px-6 py-16 space-y-32">
+
+      {/* Hero */}
+      <motion.section
+        className="flex flex-col lg:flex-row items-center gap-16"
+        initial="initial"
+        animate="animate"
+        variants={MOTION_VARIANTS.pageTransition}
+      >
+        <div className="flex-1 space-y-6">
+          <p className="text-sm font-medium text-accent uppercase tracking-widest">Hockaday School</p>
+          <h1 className="text-5xl font-serif font-bold leading-tight text-balance">
+            dAIsy
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-xl text-primary/80 leading-relaxed max-w-xl text-balance">
+            &ldquo;{HOME_CONTENT.tagline}&rdquo;
           </p>
+          <p className="text-base text-primary/60">{HOME_CONTENT.subtagline}</p>
+          <p className="text-base text-primary/70 max-w-lg">{HOME_CONTENT.programSummary}</p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <div className="shrink-0">
+          <DaisyFlower size={280} />
+          <p className="text-center text-xs text-primary/40 mt-3">Click a petal to explore a pillar</p>
         </div>
-      </main>
+      </motion.section>
+
+      {/* Pipeline */}
+      <section className="space-y-8">
+        <motion.div
+          className="text-center space-y-2"
+          initial="hidden" whileInView="visible" viewport={{ once: true }}
+          variants={MOTION_VARIANTS.fadeUp}
+        >
+          <h2 className="text-3xl font-serif font-bold">One renewing pipeline</h2>
+          <p className="text-primary/60">{HOME_CONTENT.pipelineCaption}</p>
+        </motion.div>
+        <PipelineDiagram />
+      </section>
+
+      {/* Three Pillars */}
+      <section className="space-y-8">
+        <motion.h2
+          className="text-3xl font-serif font-bold"
+          initial="hidden" whileInView="visible" viewport={{ once: true }}
+          variants={MOTION_VARIANTS.fadeUp}
+        >
+          Three pillars, one program
+        </motion.h2>
+        <motion.div
+          className="grid md:grid-cols-3 gap-6"
+          initial="hidden" whileInView="visible" viewport={{ once: true }}
+          variants={MOTION_VARIANTS.staggerContainer}
+        >
+          {HOME_CONTENT.pillars.map((pillar) => (
+            <motion.div key={pillar.number} variants={MOTION_VARIANTS.fadeUp}>
+              <Link href={pillar.href} className="block h-full">
+                <div
+                  className="rounded-2xl p-6 h-full space-y-4 border border-transparent hover:shadow-md transition-shadow"
+                  style={{ backgroundColor: `${pillar.color}22`, borderColor: `${pillar.color}44` }}
+                >
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-primary"
+                      style={{ backgroundColor: pillar.color }}
+                    >
+                      {pillar.number}
+                    </span>
+                    <h3 className="font-serif font-bold text-lg">{pillar.name}</h3>
+                  </div>
+                  <p className="text-primary/70 text-sm leading-relaxed">{pillar.summary}</p>
+                  <p className="text-xs text-primary/50 italic">{pillar.serves}</p>
+                  <div className="flex items-center gap-1 text-sm font-medium text-primary/60 group-hover:text-primary">
+                    Learn more <ArrowRight size={14} />
+                  </div>
+                </div>
+              </Link>
+            </motion.div>
+          ))}
+        </motion.div>
+      </section>
+
+      {/* AI Use Scale callout */}
+      <motion.section
+        className="rounded-2xl bg-primary text-background p-10 flex flex-col md:flex-row items-center gap-8"
+        initial="hidden" whileInView="visible" viewport={{ once: true }}
+        variants={MOTION_VARIANTS.fadeUp}
+      >
+        <div className="flex-1 space-y-3">
+          <h2 className="text-2xl font-serif font-bold">{HOME_CONTENT.scaleCallout.heading}</h2>
+          <p className="text-background/80 leading-relaxed">{HOME_CONTENT.scaleCallout.body}</p>
+        </div>
+        <Link
+          href={HOME_CONTENT.scaleCallout.href}
+          className="shrink-0 px-6 py-3 rounded-full font-medium text-primary bg-accent hover:bg-accent/90 transition-colors"
+        >
+          Explore the AI Use Scale
+        </Link>
+      </motion.section>
+
     </div>
   );
 }
